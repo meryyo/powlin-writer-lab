@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Powlin Writer · Laboratorio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --oliva:#6C9324; --coral:#DC493C; --ambar:#E89326; --gris:#AAAAAA;
+    --tinta:#23261B; --papel:#F6F6F2; --tarjeta:#FFFFFF; --linea:#E3E3DB;
+    --oliva-suave:#EFF4E3; --coral-suave:#FBEAE8; --ambar-suave:#FBF0DE;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--papel);color:var(--tinta);line-height:1.55;padding-bottom:80px}
+  header{border-bottom:3px solid var(--oliva);background:var(--tarjeta);padding:20px 24px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  header h1{font-family:'Bricolage Grotesque',sans-serif;font-size:1.35rem;font-weight:700}
+  header h1 span{color:var(--oliva)}
+  header .tag{font-family:'JetBrains Mono',monospace;font-size:.72rem;color:var(--gris);letter-spacing:.05em}
+  main{max-width:880px;margin:0 auto;padding:28px 20px}
+  .paso{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;padding:22px;margin-bottom:22px}
+  .paso h2{font-family:'Bricolage Grotesque',sans-serif;font-size:1.02rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .paso h2 .num{background:var(--tinta);color:#fff;font-family:'JetBrains Mono',monospace;font-size:.75rem;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .paso.bloqueado{opacity:.45;pointer-events:none}
+  select,button{font-family:'Inter',sans-serif;font-size:.92rem}
+  select{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;background:#fff}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 18px;font-weight:600;transition:filter .15s}
+  button:hover{filter:brightness(.95)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .btn-primario{background:var(--oliva);color:#fff}
+  .btn-secundario{background:var(--tinta);color:#fff}
+  .btn-fantasma{background:transparent;color:var(--tinta);border:1px solid var(--linea)}
+  .fila-botones{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  .hotel-info{margin-top:14px;font-size:.85rem;color:#555;background:var(--oliva-suave);border-radius:8px;padding:12px 14px}
+  .hotel-info strong{color:var(--tinta)}
+
+  /* Prompts */
+  .prompt-card{border:1px solid var(--linea);border-radius:10px;padding:14px 16px;margin-bottom:12px;cursor:pointer;position:relative;background:#fff}
+  .prompt-card:hover{border-color:var(--oliva)}
+  .prompt-card.sel{border-color:var(--oliva);box-shadow:0 0 0 2px var(--oliva-suave)}
+  .prompt-card .texto{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:500;margin-bottom:10px;padding-right:90px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:99px;letter-spacing:.02em}
+  .chip.nivel-parcial{background:var(--ambar-suave);color:#9a6210}
+  .chip.nivel-intermitente{background:var(--ambar-suave);color:var(--coral)}
+  .chip.nivel-invisible{background:var(--coral-suave);color:var(--coral)}
+  .chip.nivel-consolidado{background:var(--oliva-suave);color:var(--oliva)}
+  .chip.modelo-si{background:var(--oliva-suave);color:var(--oliva)}
+  .chip.modelo-no{background:var(--coral-suave);color:var(--coral)}
+  .chip.idioma{background:#EEE;color:#555}
+  .sugerido{position:absolute;top:12px;right:12px;font-size:.66rem;font-weight:700;color:var(--oliva);border:1.5px solid var(--oliva);border-radius:99px;padding:2px 9px;letter-spacing:.06em}
+  .detalle-extractos{margin-top:10px;font-size:.78rem;color:#666;border-top:1px dashed var(--linea);padding-top:8px;display:none}
+  .prompt-card.sel .detalle-extractos{display:block}
+  .detalle-extractos b{color:var(--tinta)}
+
+  /* Log de generación */
+  .log{font-family:'JetBrains Mono',monospace;font-size:.78rem;background:var(--tinta);color:#DDE3CF;border-radius:8px;padding:14px 16px;margin-top:14px;display:none;white-space:pre-wrap}
+  .log .ok{color:#A9C96A}
+  .log .err{color:#F0907F}
+
+  /* Resultado */
+  .veredicto{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .veredicto .caja{flex:1;min-width:140px;border:1px solid var(--linea);border-radius:8px;padding:10px 14px;font-size:.8rem}
+  .veredicto .caja b{display:block;font-size:1.05rem;margin-top:2px}
+  .caja.ok b{color:var(--oliva)} .caja.mal b{color:var(--coral)} .caja.medio b{color:var(--ambar)}
+  .articulo{border:1px solid var(--linea);border-radius:10px;padding:24px 26px;background:#fff;font-size:.93rem}
+  .articulo h1{font-family:'Bricolage Grotesque',sans-serif;font-size:1.5rem;margin-bottom:14px;line-height:1.25}
+  .articulo h2{font-family:'Bricolage Grotesque',sans-serif;font-size:1.15rem;margin:20px 0 8px}
+  .articulo h3{font-size:1rem;margin:16px 0 6px}
+  .articulo p{margin-bottom:10px}
+  .articulo ul{margin:0 0 10px 20px}
+  .meta-angulo{font-size:.8rem;color:#666;background:var(--ambar-suave);border-radius:8px;padding:10px 14px;margin-bottom:14px}
+  .feedback-judge{font-size:.8rem;color:#666;margin-top:12px;border-left:3px solid var(--linea);padding-left:12px}
+  .aviso{font-size:.82rem;color:#777;margin-top:10px}
+  .aviso a{color:var(--oliva)}
+  .error-config{background:var(--coral-suave);border:1px solid var(--coral);border-radius:8px;padding:14px;font-size:.85rem;color:var(--coral)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Powlin <span>Writer</span> · Laboratorio</h1>
+  <span class="tag">prototipo · prompt objetivo × actualidad · uso interno</span>
+</header>
+<main>
+
+  <!-- PASO 1 -->
+  <section class="paso" id="paso1">
+    <h2><span class="num">1</span> Elige el hotel</h2>
+    <div id="config-error" class="error-config" style="display:none">
+      Configura la URL del Worker: edita este archivo y sustituye <b>WORKER_URL</b> al principio del script.
+    </div>
+    <select id="sel-hotel"><option>Cargando hoteles…</option></select>
+    <div class="hotel-info" id="hotel-info" style="display:none"></div>
+  </section>
+
+  <!-- PASO 2 -->
+  <section class="paso bloqueado" id="paso2">
+    <h2><span class="num">2</span> Prompt objetivo <span style="font-weight:400;font-size:.8rem;color:var(--gris)">— leído del Study Tracker</span></h2>
+    <div id="lista-prompts"><p class="aviso">Elige un hotel para cargar sus prompts.</p></div>
+  </section>
+
+  <!-- PASO 3 -->
+  <section class="paso bloqueado" id="paso3">
+    <h2><span class="num">3</span> Generar artículo</h2>
+    <p class="aviso" id="resumen-objetivo"></p>
+    <div style="margin-top:12px">
+      <label for="sel-modelo" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Motor de redacción</label>
+      <select id="sel-modelo"></select>
+    </div>
+    <div class="fila-botones">
+      <button class="btn-primario" id="btn-generar">Generar artículo</button>
+    </div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <!-- PASO 4 -->
+  <section class="paso bloqueado" id="paso4">
+    <h2><span class="num">4</span> Revisión y guardado</h2>
+    <div class="veredicto" id="veredicto"></div>
+    <div class="meta-angulo" id="meta-angulo"></div>
+    <div class="articulo" id="articulo"></div>
+    <div class="feedback-judge" id="feedback-judge"></div>
+    <div class="fila-botones">
+      <button class="btn-secundario" id="btn-regenerar">Regenerar con otro ángulo</button>
+      <button class="btn-primario" id="btn-guardar">Guardar en Notion</button>
+    </div>
+    <p class="aviso" id="resultado-guardado"></p>
+  </section>
+
+</main>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN — lo único que tienes que tocar
+   ============================================================ */
+const WORKER_URL = "https://powlin-writer-lab.corpasmaria.workers.dev/";
+
+/* Modelos (formato OpenRouter). Añade o quita los que quieras probar.
+   Verifica los slugs exactos en openrouter.ai/models antes de usarlos. */
+const MODELOS_REDACTOR = [
+  { slug: "anthropic/claude-sonnet-4.6", nombre: "Claude Sonnet 4.6" },
+  { slug: "openai/gpt-5", nombre: "GPT-5" },
+  { slug: "google/gemini-2.5-pro", nombre: "Gemini 2.5 Pro" },
+  { slug: "deepseek/deepseek-chat", nombre: "DeepSeek V3" },
+];
+/* El Judge conviene que sea SIEMPRE el mismo modelo (para que las notas
+   sean comparables entre motores) y distinto del redactor si es posible. */
+const MODELO_JUDGE = "anthropic/claude-sonnet-4.6";
+
+/* ============================================================
+   PROMPTS DEL SISTEMA — edítalos aquí cuando quieras ajustar
+   ============================================================ */
+const PROMPT_GENERACION = (ctx) => `Eres el redactor de contenidos del ${ctx.hotelNombre}, un ${ctx.hotelTipo} en ${ctx.hotelCiudad}. Escribes un artículo para el blog del hotel con un objetivo GEO concreto: que el hotel aparezca en las respuestas de las IAs cuando un viajero pregunta "${ctx.promptObjetivo}".
+
+REGLAS OBLIGATORIAS:
+1. Idioma del artículo: ${ctx.idiomaArticulo}. Todo el artículo en ese idioma, incluido el título.
+2. Estructura answer-first: los primeros 2-3 párrafos deben responder directamente a la pregunta del prompt objetivo, mencionando al hotel de forma natural con su nombre completo y su ubicación exacta.
+3. Densidad factual: cada afirmación se apoya en los datos proporcionados abajo (datos del hotel o hechos verificados del destino). PROHIBIDO inventar datos, cifras, distancias o eventos que no estén en el contexto.
+4. Párrafos autocontenidos: cada párrafo debe entenderse por sí solo si una IA lo extrae fuera de contexto. Repite el nombre del hotel y la ciudad donde sea natural.
+5. Ángulo de actualidad: elige UN ángulo fresco basado en el bloque de actualidad (evento, temporada, tendencia). El prompt objetivo es el destino; el ángulo es el vehículo. No repitas ángulos de artículos anteriores: ${ctx.titulosAnteriores || "ninguno todavía"}.
+6. Si hay respuestas actuales de las IAs en el contexto, identifica qué información sobre el hotel FALTA en ellas y asegúrate de que el artículo la cubre. No menciones a las IAs ni a los competidores en el texto.
+7. Cierra con una sección de 3-4 preguntas frecuentes (formato: subtítulo con la pregunta, respuesta breve debajo) relacionadas con el prompt objetivo.
+8. Extensión: entre 800 y 1100 palabras. Tono según la voz de marca. Sin emojis.
+
+VOZ DE MARCA DEL HOTEL:
+${ctx.brandVoice}
+
+DATOS DEL HOTEL (única fuente válida sobre el hotel):
+${ctx.datosHotel}
+
+HECHOS VERIFICADOS DEL DESTINO (única fuente válida sobre el destino):
+${ctx.hechosDestino}
+
+ACTUALIDAD Y TEMPORADA (elige aquí tu ángulo):
+${ctx.actualidad}
+
+RESPUESTAS ACTUALES DE LAS IAs AL PROMPT OBJETIVO (para detectar qué falta):
+${ctx.respuestasIA || "No hay extractos disponibles."}
+
+FORMATO DE SALIDA (exactamente así, sin nada antes ni después):
+Línea 1: # Título del artículo
+Línea 2: ÁNGULO: descripción del ángulo de actualidad elegido en una frase
+Línea 3: (vacía)
+Resto: el artículo completo en markdown (##, ###, párrafos, listas si hacen falta).`;
+
+const PROMPT_JUDGE = (ctx) => `Eres el control de calidad de Powlin Writer. Evalúa este artículo escrito para que el ${ctx.hotelNombre} aparezca en respuestas de IAs al prompt: "${ctx.promptObjetivo}".
+
+Evalúa estos 5 criterios (0-2 puntos cada uno, nota total sobre 10):
+1. Answer-first: ¿los primeros párrafos responden directamente al prompt objetivo mencionando hotel y ubicación?
+2. Densidad factual: ¿las afirmaciones son concretas y verificables, sin relleno genérico ni datos aparentemente inventados?
+3. Párrafos autocontenidos: ¿los párrafos clave funcionan extraídos fuera de contexto?
+4. Voz e idioma: ¿respeta la voz de marca y está íntegramente en ${ctx.idiomaArticulo}?
+5. Estructura GEO: ¿tiene FAQ final y subtítulos claros?
+
+TEST DE CITABILIDAD: imagina que eres un asistente de IA respondiendo al prompt "${ctx.promptObjetivo}" y este artículo aparece entre tus fuentes recuperadas. ¿Citarías este artículo para construir tu respuesta? Sé exigente: solo "sí" si el artículo aporta información específica, directa y confiable para ese prompt exacto.
+
+ARTÍCULO A EVALUAR:
+${ctx.articulo}
+
+Responde SOLO con un JSON válido, sin markdown ni explicación fuera del JSON:
+{"nota": <número 0-10>, "aprobado": <true si nota >= 7>, "citaria": <true|false>, "feedback": "<2-3 frases: qué mejorar en concreto>"}`;
+
+/* ============================================================
+   LÓGICA
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+let hoteles = [], hotelSel = null, prompts = [], promptSel = null;
+let generado = null; // {titulo, angulo, articuloMd, judge, regenerado}
+let hechosCache = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(WORKER_URL + path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+/* ---- Paso 1: hoteles ---- */
+async function cargarHoteles() {
+  if (WORKER_URL.includes("PEGA-AQUI")) {
+    $("config-error").style.display = "block";
+    $("sel-hotel").innerHTML = "<option>—</option>";
+    return;
+  }
+  try {
+    const data = await api("/api/hotels");
+    hoteles = data.hotels;
+    $("sel-hotel").innerHTML = '<option value="">Elige un hotel…</option>' +
+      hoteles.map((h, i) => `<option value="${i}">${h.nombre} · ${h.ciudad}</option>`).join("");
+  } catch (e) {
+    $("sel-hotel").innerHTML = `<option>Error: ${e.message}</option>`;
+  }
+}
+
+$("sel-hotel").addEventListener("change", async (ev) => {
+  const i = ev.target.value;
+  if (i === "") return;
+  hotelSel = hoteles[i];
+  $("hotel-info").style.display = "block";
+  $("hotel-info").innerHTML = `<strong>${hotelSel.nombre}</strong> · ${hotelSel.tipo} · ${hotelSel.ciudad}<br>${hotelSel.publico}`;
+  $("paso2").classList.remove("bloqueado");
+  $("lista-prompts").innerHTML = '<p class="aviso">Leyendo el Study Tracker…</p>';
+  hechosCache = null;
+  try {
+    const data = await api("/api/prompts?hotel=" + encodeURIComponent(hotelSel.nombre));
+    prompts = data.prompts;
+    pintarPrompts();
+  } catch (e) {
+    $("lista-prompts").innerHTML = `<p class="aviso">Error leyendo el tracker: ${e.message}</p>`;
+  }
+});
+
+function nivelClase(n) {
+  return { "Presencia parcial": "nivel-parcial", "Presencia intermitente": "nivel-intermitente",
+           "Invisible": "nivel-invisible", "Consolidado": "nivel-consolidado" }[n] || "";
+}
+
+function pintarPrompts() {
+  if (!prompts.length) {
+    $("lista-prompts").innerHTML = '<p class="aviso">No hay filas de este hotel en el tracker todavía. Lanza una ronda en el Study Tracker y vuelve a cargar.</p>';
+    return;
+  }
+  const idxSugerido = prompts.findIndex((p) => p.nivel !== "Consolidado");
+  $("lista-prompts").innerHTML = prompts.map((p, i) => `
+    <div class="prompt-card" data-i="${i}">
+      ${i === idxSugerido ? '<span class="sugerido">SUGERIDO</span>' : ""}
+      <div class="texto">${p.prompt}</div>
+      <div class="chips">
+        <span class="chip idioma">${p.idioma}</span>
+        <span class="chip ${nivelClase(p.nivel)}">${p.nivel}</span>
+        ${p.models.map((m) => `<span class="chip modelo-${m.aparece === "Sí" ? "si" : "no"}">${m.modelo}: ${m.aparece}</span>`).join("")}
+      </div>
+      <div class="detalle-extractos">
+        ${p.extractos.length ? "<b>Qué responden ahora las IAs:</b><br>" + p.extractos.map((e) => `· <i>${e.modelo}:</i> ${e.texto.slice(0, 220)}…`).join("<br>") : "Sin extractos guardados para este prompt."}
+        ${p.competidores.length ? `<br><b>Competidores que aparecen:</b> ${p.competidores.slice(0, 6).join(", ")}` : ""}
+      </div>
+    </div>`).join("");
+  document.querySelectorAll(".prompt-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      document.querySelectorAll(".prompt-card").forEach((c) => c.classList.remove("sel"));
+      card.classList.add("sel");
+      promptSel = prompts[card.dataset.i];
+      const modo = promptSel.nivel === "Consolidado" ? "Refuerzo" : "Conquista";
+      $("paso3").classList.remove("bloqueado");
+      $("resumen-objetivo").innerHTML = `Modo <b>${modo}</b> · el artículo atacará: <b>"${promptSel.prompt}"</b> (${promptSel.idioma === "EN" ? "artículo en inglés" : "artículo en español"})`;
+    });
+  });
+}
+
+/* ---- Paso 3: generación ---- */
+function log(msg, cls = "") {
+  const el = $("log");
+  el.style.display = "block";
+  el.innerHTML += (cls ? `<span class="${cls}">${msg}</span>` : msg) + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+$("btn-generar").addEventListener("click", () => generar(false));
+$("btn-regenerar").addEventListener("click", () => generar(true));
+
+async function generar(esRegeneracion) {
+  if (!hotelSel || !promptSel) return;
+  $("btn-generar").disabled = true;
+  $("btn-regenerar").disabled = true;
+  $("log").innerHTML = "";
+  const idiomaArticulo = promptSel.idioma === "EN" ? "inglés" : "español";
+  const hoy = new Date().toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+
+  try {
+    // 1) EXA — hechos del destino (se cachean por sesión de hotel)
+    if (!hechosCache) {
+      log("→ EXA: hechos verificados del destino…");
+      const q1 = await api("/api/exa", { method: "POST", body: JSON.stringify({
+        query: `${hotelSel.ciudad} guía para viajeros datos prácticos qué ver`, numResults: 5 }) });
+      log("→ EXA: actualidad, eventos y temporada…");
+      const q2 = await api("/api/exa", { method: "POST", body: JSON.stringify({
+        query: `eventos novedades ${hotelSel.ciudad} ${hoy}`, numResults: 5 }) });
+      hechosCache = { destino: q1.results, actualidad: q2.results };
+      log("  ✓ investigación completada", "ok");
+    } else {
+      log("→ EXA: usando la investigación de esta sesión ✓", "ok");
+    }
+
+    const fmt = (rs) => rs.map((r) => `- [${r.publishedDate || "s.f."}] ${r.title}: ${r.summary || r.text}`).join("\n");
+
+    // 2) Generación
+    log("→ Claude: generando el artículo…");
+    const ctx = {
+      hotelNombre: hotelSel.nombre, hotelTipo: hotelSel.tipo, hotelCiudad: hotelSel.ciudad,
+      promptObjetivo: promptSel.prompt, idiomaArticulo,
+      brandVoice: hotelSel.brandVoice || "Tono profesional cercano.",
+      datosHotel: `${hotelSel.diferenciadores}\nPúblico: ${hotelSel.publico}\nWeb: ${hotelSel.url}`,
+      hechosDestino: fmt(hechosCache.destino),
+      actualidad: fmt(hechosCache.actualidad),
+      respuestasIA: promptSel.extractos.map((e) => `[${e.modelo}] ${e.texto}`).join("\n\n"),
+      titulosAnteriores: (generado && esRegeneracion) ? `"${generado.titulo}" (ángulo: ${generado.angulo})` : "",
+    };
+    let user = PROMPT_GENERACION(ctx);
+    if (esRegeneracion && generado) user += `\n\nIMPORTANTE: elige un ángulo y un título DISTINTOS a los anteriores.`;
+    const modeloRedactor = $("sel-modelo").value;
+    log(`  motor: ${modeloRedactor}`);
+    const gen = await api("/api/llm", { method: "POST", body: JSON.stringify({ model: modeloRedactor, user, maxTokens: 4000 }) });
+    let { titulo, angulo, cuerpo } = parsearSalida(gen.text);
+    log(`  ✓ "${titulo}"`, "ok");
+
+    // 3) Judge + citabilidad
+    log("→ Judge: control de calidad y test de citabilidad…");
+    let judge = await juzgar(titulo, cuerpo, idiomaArticulo);
+    let veredicto = "Aprobado";
+
+    // 4) Una regeneración automática si suspende
+    if (!judge.aprobado || !judge.citaria) {
+      log(`  ✗ nota ${judge.nota}/10 · citaría: ${judge.citaria ? "sí" : "no"} — regenerando con feedback…`, "err");
+      const user2 = PROMPT_GENERACION(ctx) + `\n\nEl control de calidad rechazó el intento anterior. Corrige esto: ${judge.feedback}`;
+      const gen2 = await api("/api/llm", { method: "POST", body: JSON.stringify({ model: modeloRedactor, user: user2, maxTokens: 4000 }) });
+      ({ titulo, angulo, cuerpo } = parsearSalida(gen2.text));
+      judge = await juzgar(titulo, cuerpo, idiomaArticulo);
+      veredicto = judge.aprobado && judge.citaria ? "Aprobado tras regenerar" : "Necesita revisión";
+    }
+    log(`  ✓ nota ${judge.nota}/10 · citaría: ${judge.citaria ? "sí" : "no"}`, "ok");
+
+    generado = { titulo, angulo, articuloMd: `# ${titulo}\n\n${cuerpo}`, judge, veredicto, motor: modeloRedactor };
+    pintarResultado();
+  } catch (e) {
+    log("ERROR: " + e.message, "err");
+  } finally {
+    $("btn-generar").disabled = false;
+    $("btn-regenerar").disabled = false;
+  }
+}
+
+function parsearSalida(text) {
+  const lines = text.trim().split("\n");
+  let titulo = "Sin título", angulo = "", start = 0;
+  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+    if (lines[i].startsWith("# ")) { titulo = lines[i].slice(2).trim(); start = i + 1; }
+    if (lines[i].toUpperCase().startsWith("ÁNGULO:") || lines[i].toUpperCase().startsWith("ANGULO:")) {
+      angulo = lines[i].split(":").slice(1).join(":").trim(); start = i + 1;
+    }
+  }
+  return { titulo, angulo, cuerpo: lines.slice(start).join("\n").trim() };
+}
+
+async function juzgar(titulo, cuerpo, idiomaArticulo) {
+  const res = await api("/api/llm", { method: "POST", body: JSON.stringify({
+    model: MODELO_JUDGE,
+    user: PROMPT_JUDGE({ hotelNombre: hotelSel.nombre, promptObjetivo: promptSel.prompt,
+      idiomaArticulo, articulo: `# ${titulo}\n\n${cuerpo}` }),
+    maxTokens: 600 }) });
+  const clean = res.text.replace(/```json|```/g, "").trim();
+  try { return JSON.parse(clean); }
+  catch { return { nota: 0, aprobado: false, citaria: false, feedback: "El Judge no devolvió JSON válido: " + clean.slice(0, 200) }; }
+}
+
+/* ---- Paso 4: resultado ---- */
+function pintarResultado() {
+  const g = generado;
+  $("paso4").classList.remove("bloqueado");
+  const vClase = g.veredicto === "Aprobado" ? "ok" : g.veredicto === "Aprobado tras regenerar" ? "medio" : "mal";
+  $("veredicto").innerHTML = `
+    <div class="caja ${vClase}">Veredicto<b>${g.veredicto}</b></div>
+    <div class="caja ${g.judge.nota >= 7 ? "ok" : "mal"}">Nota del Judge<b>${g.judge.nota}/10</b></div>
+    <div class="caja ${g.judge.citaria ? "ok" : "mal"}">Test de citabilidad<b>${g.judge.citaria ? "✓ Citaría" : "✗ No citaría"}</b></div>`;
+  $("meta-angulo").innerHTML = `<b>Ángulo de actualidad:</b> ${g.angulo || "—"} · <b>Prompt objetivo:</b> "${promptSel.prompt}"`;
+  $("articulo").innerHTML = mdAHtml(g.articuloMd);
+  $("feedback-judge").textContent = g.judge.feedback ? "Judge: " + g.judge.feedback : "";
+  $("resultado-guardado").innerHTML = "";
+  $("paso4").scrollIntoView({ behavior: "smooth" });
+}
+
+function mdAHtml(md) {
+  return md.split("\n").map((l) => {
+    l = l.trim();
+    if (!l) return "";
+    const inline = (t) => t.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>").replace(/\*(.*?)\*/g, "<i>$1</i>");
+    if (l.startsWith("### ")) return `<h3>${inline(l.slice(4))}</h3>`;
+    if (l.startsWith("## ")) return `<h2>${inline(l.slice(3))}</h2>`;
+    if (l.startsWith("# ")) return `<h1>${inline(l.slice(2))}</h1>`;
+    if (l.startsWith("- ") || l.startsWith("* ")) return `<ul><li>${inline(l.slice(2))}</li></ul>`;
+    return `<p>${inline(l)}</p>`;
+  }).join("");
+}
+
+/* ---- Guardar ---- */
+$("btn-guardar").addEventListener("click", async () => {
+  if (!generado) return;
+  $("btn-guardar").disabled = true;
+  $("resultado-guardado").textContent = "Guardando en Notion…";
+  try {
+    const data = await api("/api/save", { method: "POST", body: JSON.stringify({
+      hotelPageId: hotelSel.pageId,
+      promptText: promptSel.prompt,
+      idioma: promptSel.idioma === "EN" ? "Inglés" : "Español",
+      nivel: promptSel.nivel,
+      modo: promptSel.nivel === "Consolidado" ? "Refuerzo" : "Conquista",
+      estadosPorModelo: promptSel.models,
+      angulo: generado.angulo,
+      titulo: generado.titulo,
+      articuloMarkdown: generado.articuloMd,
+      judgeNota: generado.judge.nota,
+      judgeVeredicto: generado.veredicto,
+      citaria: generado.judge.citaria,
+      judgeFeedback: generado.judge.feedback,
+      motor: generado.motor || "",
+    }) });
+    $("resultado-guardado").innerHTML = `✓ Guardado. <a href="${data.articleUrl}" target="_blank">Abrir el artículo en Notion</a>`;
+  } catch (e) {
+    $("resultado-guardado").textContent = "Error al guardar: " + e.message;
+  } finally {
+    $("btn-guardar").disabled = false;
+  }
+});
+
+$("sel-modelo").innerHTML = MODELOS_REDACTOR.map((m) => `<option value="${m.slug}">${m.nombre}</option>`).join("");
+cargarHoteles();
+</script>
+</body>
+</html>
