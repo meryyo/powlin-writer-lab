@@ -129,6 +129,10 @@
         <label for="sel-tipo" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Tipo de artículo</label>
         <select id="sel-tipo"></select>
       </div>
+      <div style="flex:1;min-width:200px">
+        <label for="sel-registro" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Registro de voz</label>
+        <select id="sel-registro"></select>
+      </div>
     </div>
     <div class="fila-botones">
       <button class="btn-primario" id="btn-generar">Generar artículo</button>
@@ -170,6 +174,16 @@ const MODELOS_REDACTOR = [
    sean comparables entre motores) y distinto del redactor si es posible. */
 const MODELO_JUDGE = "anthropic/claude-sonnet-4.6";
 
+/* Registro de voz — se aplica POR ENCIMA del brand voice del hotel.
+   "Brand voice del hotel" usa solo lo detectado/guardado en Notion. */
+const REGISTROS_VOZ = {
+  "Brand voice del hotel": "",
+  "Sofisticado y elegante": "ELEVA EL REGISTRO: prosa sofisticada y cuidada, propia de una publicación de viajes de alta gama. Vocabulario preciso y elegante sin caer en lo recargado ni lo cursi. Ritmo sereno, frases bien construidas. Cero coloquialismos, cero exclamaciones, cero tuteo comercial. El lujo se sugiere con datos y detalles, no se grita con adjetivos.",
+  "Cercano y directo": "REGISTRO CERCANO: tuteo natural, frases directas, calidez sin cursilería. Como un amigo local que sabe de lo que habla. Práctico y concreto.",
+  "Profesional sobrio": "REGISTRO PROFESIONAL: neutro, informativo y riguroso, estilo guía de referencia. Sin florituras ni apelaciones emocionales. Los datos mandan.",
+  "Fresco y dinámico": "REGISTRO FRESCO: ágil, con energía, frases cortas y ritmo rápido. Juvenil sin ser infantil. Directo al grano con personalidad.",
+};
+
 /* Tipos de artículo — en producción rotarán automáticamente (4 al mes, uno de cada).
    Todos comparten el mismo objetivo GEO y los mismos elementos obligatorios;
    cambia el enfoque y la forma de contar. */
@@ -190,19 +204,26 @@ REGLAS OBLIGATORIAS:
 2. Estructura answer-first: los primeros 2-3 párrafos deben responder directamente a la pregunta del prompt objetivo, mencionando al hotel de forma natural con su nombre completo y su ubicación exacta.
 3. Densidad factual: cada afirmación se apoya en los datos proporcionados abajo (datos del hotel o hechos verificados del destino). PROHIBIDO inventar datos, cifras, distancias o eventos que no estén en el contexto.
 4. Párrafos autocontenidos: cada párrafo debe entenderse por sí solo si una IA lo extrae fuera de contexto. Repite el nombre del hotel y la ciudad donde sea natural.
-5. Ángulo de actualidad: elige UN ángulo fresco basado en los bloques de agenda y novedades (evento, temporada, tendencia). El prompt objetivo es el destino; el ángulo es el vehículo. No repitas ángulos de artículos anteriores: ${ctx.titulosAnteriores || "ninguno todavía"}.
+5. Ángulo de actualidad: elige UN ángulo fresco basado en los bloques de agenda y novedades (evento, temporada, tendencia). El prompt objetivo es el destino; el ángulo es el vehículo. No repitas ángulos ya usados (ver ARTÍCULOS ANTERIORES al final).
 6. Si hay respuestas actuales de las IAs en el contexto, identifica qué información sobre el hotel FALTA en ellas y asegúrate de que el artículo la cubre. No menciones a las IAs ni a los competidores en el texto.
 7. Cierra con una sección de 3-4 preguntas frecuentes (formato: subtítulo con la pregunta, respuesta breve debajo) relacionadas con el prompt objetivo.
 8. Extensión: entre 1100 y 1500 palabras. Tono según la voz de marca. Sin emojis.
+9. ORIGINALIDAD RADICAL: cada artículo debe ser inconfundible respecto a los anteriores del hotel (lista abajo). PROHIBIDO: abrir frases o párrafos con "Si buscas", "Si quieres", "Si estás pensando", "Si viajas", "Imagina", "Descubre"; la fórmula "no es solo X, es Y" y sus variantes; cierres genéricos ("no te arrepentirás", "te esperamos"). Varía la arquitectura del artículo: no repitas el esquema de subtítulos ni el tipo de apertura de los artículos anteriores (si uno abrió con un dato, abre con una escena; si uno abrió con una pregunta, abre con una afirmación rotunda). Alterna frases largas y cortas.
 
 TIPO DE ARTÍCULO DE ESTA SEMANA (define el enfoque y la forma de contar):
 ${ctx.tipoInstrucciones}
+
+REGISTRO DE VOZ (si contradice al brand voice, manda esto):
+${ctx.registroVoz || "Sigue fielmente la voz de marca del hotel."}
+
+ARTÍCULOS ANTERIORES DE ESTE HOTEL (para NO parecerte a ellos ni en ángulo, ni en apertura, ni en estructura):
+${ctx.titulosAnteriores || "Ninguno todavía — este es el primero."}
 
 ELEMENTOS OBLIGATORIOS — el artículo SIEMPRE incluye TODOS estos, integrados donde mejor encajen:
 A. UNA TABLA COMPARATIVA en markdown (formato | col | col |) útil para el lector y relevante al prompt objetivo: por ejemplo distancias a pie desde el hotel a puntos clave, comparación de zonas o de planes por tipo de viajero. Solo con datos del contexto. Cabecera clara, 3-6 filas.
 B. UN BLOQUE DESTACADO (líneas que empiezan con "> ") con UN dato sorprendente y verificable del contexto sobre el destino o el hotel. Que haga levantar la ceja al lector.
 C. UN BLOQUE DESTACADO DE UBICACIÓN (líneas que empiezan con "> ") con cómo llegar al hotel: distancias y tiempos concretos, y un enlace a Google Maps con este formato exacto: [Ver en Google Maps](https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ctx.hotelNombre + " " + ctx.hotelCiudad)})
-D. UNA SECCIÓN "Qué hacer en ${ctx.mesArticulo} en ${ctx.hotelCiudad}" (## como subtítulo, adaptado al idioma del artículo) con 4-6 planes o eventos sacados EXCLUSIVAMENTE del bloque AGENDA OFICIAL, cada uno con su enlace a la fuente en formato [nombre del evento o web](URL).
+D. UNA SECCIÓN "Qué hacer en ${ctx.mesArticulo} y ${ctx.mesSiguiente} en ${ctx.hotelCiudad}" (## como subtítulo, adaptado al idioma del artículo) con 4-6 planes o eventos sacados EXCLUSIVAMENTE del bloque AGENDA OFICIAL, cada uno con su enlace a la fuente en formato [nombre del evento o web](URL). CRÍTICO: hoy es ${ctx.fechaHoy}; usa SOLO planes a futuro dentro de los próximos 30-60 días. Descarta todo lo ya pasado o lo que ocurra en los próximos 3-4 días (el hotelero necesita margen para publicar). Si un evento no tiene fecha clara en el contexto, no lo uses.
 E. NEGRITAS: entre 6 y 10 en todo el artículo, SOLO sobre datos que impactan a la vista: distancias ("a **50 pasos** de la estación"), cifras, exclusividades ("el **único** con..."), reconocimientos ("**Patrimonio de la Humanidad**"). Nunca frases enteras ni relleno.
 F. ENLACES: solo puedes enlazar URLs que aparezcan LITERALMENTE en el contexto de abajo (más el de Google Maps del punto C). Prefiere siempre las webs oficiales (turismo oficial, ayuntamiento, sedes de eventos). Entre 3 y 6 enlaces externos en el artículo. PROHIBIDO inventar, adivinar o "recordar" URLs.
 
@@ -215,7 +236,7 @@ ${ctx.datosHotel}
 HECHOS VERIFICADOS DEL DESTINO (única fuente válida sobre el destino):
 ${ctx.hechosDestino}
 
-AGENDA OFICIAL DEL MES (para la sección "Qué hacer en ${ctx.mesArticulo}" — usa sus URLs como fuentes):
+AGENDA OFICIAL (para la sección "Qué hacer en ${ctx.mesArticulo} y ${ctx.mesSiguiente}" — usa sus URLs como fuentes y filtra solo eventos futuros):
 ${ctx.agenda}
 
 NOVEDADES Y ACTUALIDAD (para elegir el ángulo):
@@ -236,7 +257,7 @@ Evalúa estos 5 criterios (0-2 puntos cada uno, nota total sobre 10):
 1. Answer-first: ¿los primeros párrafos responden directamente al prompt objetivo mencionando hotel y ubicación?
 2. Densidad factual: ¿las afirmaciones son concretas y verificables, sin relleno genérico ni datos aparentemente inventados?
 3. Párrafos autocontenidos: ¿los párrafos clave funcionan extraídos fuera de contexto?
-4. Voz e idioma: ¿respeta la voz de marca y está íntegramente en ${ctx.idiomaArticulo}?
+4. Voz, registro y originalidad: ¿respeta la voz pedida, está íntegramente en ${ctx.idiomaArticulo}, y evita fórmulas plantilla? Penaliza con 0 si encuentras aperturas tipo "Si buscas...", "Si quieres...", "Imagina...", "Descubre...", la fórmula "no es solo X, es Y" o cierres genéricos.
 5. Estructura GEO completa: ¿tiene TODOS estos elementos? tabla comparativa, al menos dos bloques destacados (uno con dato sorprendente y otro de ubicación con enlace a Google Maps), sección de qué hacer este mes con enlaces a fuentes, FAQ final, y entre 6 y 10 negritas sobre datos concretos. Si falta CUALQUIERA de ellos, este criterio puntúa 0.
 
 TEST DE CITABILIDAD: imagina que eres un asistente de IA respondiendo al prompt "${ctx.promptObjetivo}" y este artículo aparece entre tus fuentes recuperadas. ¿Citarías este artículo para construir tu respuesta? Sé exigente: solo "sí" si el artículo aporta información específica, directa y confiable para ese prompt exacto.
@@ -252,8 +273,9 @@ Responde SOLO con un JSON válido, sin markdown ni explicación fuera del JSON:
    ============================================================ */
 const $ = (id) => document.getElementById(id);
 let hoteles = [], hotelSel = null, prompts = [], promptSel = null;
-let generado = null; // {titulo, angulo, articuloMd, judge, regenerado}
+let generado = null; // {titulo, angulo, articuloMd, judge, veredicto, motor, tipo}
 let hechosCache = null;
+let hotelArticulos = []; // artículos anteriores del hotel (memoria anti copy-cat)
 
 async function api(path, opts = {}) {
   const res = await fetch(WORKER_URL + path, {
@@ -291,9 +313,14 @@ $("sel-hotel").addEventListener("change", async (ev) => {
   $("paso2").classList.remove("bloqueado");
   $("lista-prompts").innerHTML = '<p class="aviso">Leyendo el Study Tracker…</p>';
   hechosCache = null;
+  hotelArticulos = [];
   try {
-    const data = await api("/api/prompts?hotel=" + encodeURIComponent(hotelSel.nombre));
+    const [data, arts] = await Promise.all([
+      api("/api/prompts?hotel=" + encodeURIComponent(hotelSel.nombre)),
+      api("/api/articulos?hotel=" + encodeURIComponent(hotelSel.pageId)).catch(() => ({ articulos: [] })),
+    ]);
     prompts = data.prompts;
+    hotelArticulos = arts.articulos || [];
     pintarPrompts();
   } catch (e) {
     $("lista-prompts").innerHTML = `<p class="aviso">Error leyendo el tracker: ${e.message}</p>`;
@@ -372,10 +399,13 @@ async function generar(esRegeneracion) {
   $("log").innerHTML = "";
   const idiomaArticulo = promptSel.idioma === "EN" ? "inglés" : "español";
   const ahora = new Date();
+  const proxMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1);
+  const loc = promptSel.idioma === "EN" ? "en-US" : "es-ES";
+  const mesArticulo = ahora.toLocaleDateString(loc, { month: "long" });
+  const mesSiguiente = proxMes.toLocaleDateString(loc, { month: "long" });
+  const fechaHoy = ahora.toLocaleDateString(loc, { day: "numeric", month: "long", year: "numeric" });
   const mesAño = ahora.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  const mesArticulo = promptSel.idioma === "EN"
-    ? ahora.toLocaleDateString("en-US", { month: "long" })
-    : ahora.toLocaleDateString("es-ES", { month: "long" });
+  const mesAñoSig = proxMes.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
 
   try {
     // 1) EXA — investigación (se cachea por sesión de hotel)
@@ -383,9 +413,9 @@ async function generar(esRegeneracion) {
       log("→ EXA: hechos verificados del destino…");
       const q1 = await api("/api/exa", { method: "POST", body: JSON.stringify({
         query: `${hotelSel.ciudad} guía para viajeros datos prácticos qué ver`, numResults: 5 }) });
-      log("→ EXA: agenda oficial de " + mesAño + "…");
+      log(`→ EXA: agenda oficial de ${mesAño} y ${mesAñoSig}…`);
       const q2 = await api("/api/exa", { method: "POST", body: JSON.stringify({
-        query: `agenda oficial de eventos y actividades en ${hotelSel.ciudad} en ${mesAño} web oficial de turismo o ayuntamiento`, numResults: 6 }) });
+        query: `agenda oficial de eventos y actividades en ${hotelSel.ciudad} en ${mesAño} y ${mesAñoSig} web oficial de turismo o ayuntamiento`, numResults: 8 }) });
       log("→ EXA: novedades y actualidad…");
       const q3 = await api("/api/exa", { method: "POST", body: JSON.stringify({
         query: `novedades aperturas tendencias ${hotelSel.ciudad} ${ahora.getFullYear()}`, numResults: 4 }) });
@@ -400,17 +430,23 @@ async function generar(esRegeneracion) {
     // 2) Generación
     log("→ Claude: generando el artículo…");
     const tipoSel = $("sel-tipo").value;
+    const registroSel = $("sel-registro").value;
+    const anteriores = [
+      ...hotelArticulos.map((a) => `- "${a.titulo}" (tipo: ${a.tipo || "?"}, ángulo: ${a.angulo || "?"})`),
+      ...(generado && esRegeneracion ? [`- "${generado.titulo}" (ángulo: ${generado.angulo}) [intento descartado en esta sesión]`] : []),
+    ].join("\n");
     const ctx = {
       hotelNombre: hotelSel.nombre, hotelTipo: hotelSel.tipo, hotelCiudad: hotelSel.ciudad,
-      promptObjetivo: promptSel.prompt, idiomaArticulo, mesArticulo,
+      promptObjetivo: promptSel.prompt, idiomaArticulo, mesArticulo, mesSiguiente, fechaHoy,
       tipoInstrucciones: TIPOS_ARTICULO[tipoSel],
+      registroVoz: REGISTROS_VOZ[registroSel],
       brandVoice: hotelSel.brandVoice || "Tono profesional cercano.",
       datosHotel: `${hotelSel.diferenciadores}\nPúblico: ${hotelSel.publico}\nWeb: ${hotelSel.url}`,
       hechosDestino: fmt(hechosCache.destino),
       agenda: fmt(hechosCache.agenda),
       actualidad: fmt(hechosCache.novedades),
       respuestasIA: promptSel.extractos.map((e) => `[${e.modelo}] ${e.texto}`).join("\n\n"),
-      titulosAnteriores: (generado && esRegeneracion) ? `"${generado.titulo}" (ángulo: ${generado.angulo})` : "",
+      titulosAnteriores: anteriores,
     };
     let user = PROMPT_GENERACION(ctx);
     if (esRegeneracion && generado) user += `\n\nIMPORTANTE: elige un ángulo y un título DISTINTOS a los anteriores.`;
@@ -557,6 +593,7 @@ $("btn-guardar").addEventListener("click", async () => {
 
 $("sel-modelo").innerHTML = MODELOS_REDACTOR.map((m) => `<option value="${m.slug}">${m.nombre}</option>`).join("");
 $("sel-tipo").innerHTML = Object.keys(TIPOS_ARTICULO).map((t) => `<option value="${t}">${t}</option>`).join("");
+$("sel-registro").innerHTML = Object.keys(REGISTROS_VOZ).map((r) => `<option value="${r}">${r}</option>`).join("");
 $("btn-onboard").addEventListener("click", async () => {
   const nombre = $("nuevo-nombre").value.trim();
   const urlWeb = $("nuevo-url").value.trim();
