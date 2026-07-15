@@ -99,6 +99,15 @@
     </div>
     <select id="sel-hotel"><option>Cargando hoteles…</option></select>
     <div class="hotel-info" id="hotel-info" style="display:none"></div>
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--oliva)">+ Añadir hotel nuevo (ficha automática desde su web)</summary>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <input id="nuevo-nombre" placeholder="Nombre del hotel" style="flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;font-family:'Inter',sans-serif;font-size:.92rem">
+        <input id="nuevo-url" placeholder="https://webdelhotel.com" style="flex:1.4;min-width:220px;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;font-family:'Inter',sans-serif;font-size:.92rem">
+        <button class="btn-primario" id="btn-onboard">Crear ficha</button>
+      </div>
+      <p class="aviso" id="onboard-status"></p>
+    </details>
   </section>
 
   <!-- PASO 2 -->
@@ -111,9 +120,15 @@
   <section class="paso bloqueado" id="paso3">
     <h2><span class="num">3</span> Generar artículo</h2>
     <p class="aviso" id="resumen-objetivo"></p>
-    <div style="margin-top:12px">
-      <label for="sel-modelo" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Motor de redacción</label>
-      <select id="sel-modelo"></select>
+    <div style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <label for="sel-modelo" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Motor de redacción</label>
+        <select id="sel-modelo"></select>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <label for="sel-tipo" style="font-size:.8rem;font-weight:600;display:block;margin-bottom:6px">Tipo de artículo</label>
+        <select id="sel-tipo"></select>
+      </div>
     </div>
     <div class="fila-botones">
       <button class="btn-primario" id="btn-generar">Generar artículo</button>
@@ -155,6 +170,16 @@ const MODELOS_REDACTOR = [
    sean comparables entre motores) y distinto del redactor si es posible. */
 const MODELO_JUDGE = "anthropic/claude-sonnet-4.6";
 
+/* Tipos de artículo — en producción rotarán automáticamente (4 al mes, uno de cada).
+   Todos comparten el mismo objetivo GEO y los mismos elementos obligatorios;
+   cambia el enfoque y la forma de contar. */
+const TIPOS_ARTICULO = {
+  "Comparativo": "Artículo COMPARATIVO: su corazón es la comparación honesta de opciones (zonas donde alojarse, tipos de plan, formas de moverse...) relevante al prompt objetivo. La tabla comparativa es la pieza central y el texto la desarrolla. El hotel aparece como una de las opciones, bien argumentado con sus datos reales, sin desacreditar al resto.",
+  "Informativo": "Artículo INFORMATIVO: responde a la pregunta del prompt objetivo con la máxima utilidad factual. Datos, cifras, horarios, distancias, contexto. Estructura de respuesta directa primero y profundidad después. Es el artículo que un viajero guardaría como referencia.",
+  "Inspiracional": "Artículo INSPIRACIONAL: narrativo y evocador. Pinta la experiencia (el paseo por el cauce, el café de la mañana, la luz de la ciudad) con storytelling ligero, pero SIEMPRE anclado en los hechos del contexto: cada imagen evocada se apoya en un dato real. Emoción con los pies en el suelo.",
+  "Práctico": "Artículo PRÁCTICO (guía): accionable de principio a fin. Itinerario, pasos, checklist, cómo llegar, cuánto cuesta, cuándo ir, qué reservar antes. El lector termina sabiendo exactamente qué hacer. Verbos de acción y cero paja.",
+};
+
 /* ============================================================
    PROMPTS DEL SISTEMA — edítalos aquí cuando quieras ajustar
    ============================================================ */
@@ -169,6 +194,9 @@ REGLAS OBLIGATORIAS:
 6. Si hay respuestas actuales de las IAs en el contexto, identifica qué información sobre el hotel FALTA en ellas y asegúrate de que el artículo la cubre. No menciones a las IAs ni a los competidores en el texto.
 7. Cierra con una sección de 3-4 preguntas frecuentes (formato: subtítulo con la pregunta, respuesta breve debajo) relacionadas con el prompt objetivo.
 8. Extensión: entre 1100 y 1500 palabras. Tono según la voz de marca. Sin emojis.
+
+TIPO DE ARTÍCULO DE ESTA SEMANA (define el enfoque y la forma de contar):
+${ctx.tipoInstrucciones}
 
 ELEMENTOS OBLIGATORIOS — el artículo SIEMPRE incluye TODOS estos, integrados donde mejor encajen:
 A. UNA TABLA COMPARATIVA en markdown (formato | col | col |) útil para el lector y relevante al prompt objetivo: por ejemplo distancias a pie desde el hotel a puntos clave, comparación de zonas o de planes por tipo de viajero. Solo con datos del contexto. Cabecera clara, 3-6 filas.
@@ -277,12 +305,28 @@ function nivelClase(n) {
            "Invisible": "nivel-invisible", "Consolidado": "nivel-consolidado" }[n] || "";
 }
 
+/* ¿El prompt nombra al hotel? Escribir para un prompt que ya te nombra es
+   hacerse trampas al solitario: se excluye de la sugerencia automática. */
+function normaliza(t) {
+  return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function mencionaHotel(promptText, hotel) {
+  const p = normaliza(promptText);
+  const nombreCompleto = normaliza(hotel.nombre);
+  // También sin la ciudad al final ("Hotel Turia Valencia" → "Hotel Turia")
+  const sinCiudad = normaliza(hotel.nombre.replace(new RegExp(hotel.ciudad + "\\s*$", "i"), "").trim());
+  return p.includes(nombreCompleto) || (sinCiudad.length > 5 && p.includes(sinCiudad));
+}
+
 function pintarPrompts() {
   if (!prompts.length) {
     $("lista-prompts").innerHTML = '<p class="aviso">No hay filas de este hotel en el tracker todavía. Lanza una ronda en el Study Tracker y vuelve a cargar.</p>';
     return;
   }
-  const idxSugerido = prompts.findIndex((p) => p.nivel !== "Consolidado");
+  // Los prompts que nombran al hotel van al final y nunca son SUGERIDO
+  prompts.forEach((p) => { p.nombraHotel = mencionaHotel(p.prompt, hotelSel); });
+  prompts.sort((a, b) => (a.nombraHotel === b.nombraHotel) ? 0 : (a.nombraHotel ? 1 : -1));
+  const idxSugerido = prompts.findIndex((p) => p.nivel !== "Consolidado" && !p.nombraHotel);
   $("lista-prompts").innerHTML = prompts.map((p, i) => `
     <div class="prompt-card" data-i="${i}">
       ${i === idxSugerido ? '<span class="sugerido">SUGERIDO</span>' : ""}
@@ -290,6 +334,7 @@ function pintarPrompts() {
       <div class="chips">
         <span class="chip idioma">${p.idioma}</span>
         <span class="chip ${nivelClase(p.nivel)}">${p.nivel}</span>
+        ${p.nombraHotel ? '<span class="chip" style="background:#EEE;color:#888" title="Este prompt sirve para medir reconocimiento, no como objetivo de contenido">nombra al hotel — mide reconocimiento</span>' : ""}
         ${p.models.map((m) => `<span class="chip modelo-${m.aparece === "Sí" ? "si" : "no"}">${m.modelo}: ${m.aparece}</span>`).join("")}
       </div>
       <div class="detalle-extractos">
@@ -354,9 +399,11 @@ async function generar(esRegeneracion) {
 
     // 2) Generación
     log("→ Claude: generando el artículo…");
+    const tipoSel = $("sel-tipo").value;
     const ctx = {
       hotelNombre: hotelSel.nombre, hotelTipo: hotelSel.tipo, hotelCiudad: hotelSel.ciudad,
       promptObjetivo: promptSel.prompt, idiomaArticulo, mesArticulo,
+      tipoInstrucciones: TIPOS_ARTICULO[tipoSel],
       brandVoice: hotelSel.brandVoice || "Tono profesional cercano.",
       datosHotel: `${hotelSel.diferenciadores}\nPúblico: ${hotelSel.publico}\nWeb: ${hotelSel.url}`,
       hechosDestino: fmt(hechosCache.destino),
@@ -389,7 +436,7 @@ async function generar(esRegeneracion) {
     }
     log(`  ✓ nota ${judge.nota}/10 · citaría: ${judge.citaria ? "sí" : "no"}`, "ok");
 
-    generado = { titulo, angulo, articuloMd: `# ${titulo}\n\n${cuerpo}`, judge, veredicto, motor: modeloRedactor };
+    generado = { titulo, angulo, articuloMd: `# ${titulo}\n\n${cuerpo}`, judge, veredicto, motor: modeloRedactor, tipo: tipoSel };
     pintarResultado();
   } catch (e) {
     log("ERROR: " + e.message, "err");
@@ -431,7 +478,7 @@ function pintarResultado() {
     <div class="caja ${vClase}">Veredicto<b>${g.veredicto}</b></div>
     <div class="caja ${g.judge.nota >= 7 ? "ok" : "mal"}">Nota del Judge<b>${g.judge.nota}/10</b></div>
     <div class="caja ${g.judge.citaria ? "ok" : "mal"}">Test de citabilidad<b>${g.judge.citaria ? "✓ Citaría" : "✗ No citaría"}</b></div>`;
-  $("meta-angulo").innerHTML = `<b>Ángulo de actualidad:</b> ${g.angulo || "—"} · <b>Prompt objetivo:</b> "${promptSel.prompt}"`;
+  $("meta-angulo").innerHTML = `<b>Tipo:</b> ${g.tipo || "—"} · <b>Ángulo de actualidad:</b> ${g.angulo || "—"} · <b>Prompt objetivo:</b> "${promptSel.prompt}"`;
   $("articulo").innerHTML = mdAHtml(g.articuloMd);
   $("feedback-judge").textContent = g.judge.feedback ? "Judge: " + g.judge.feedback : "";
   $("resultado-guardado").innerHTML = "";
@@ -498,6 +545,7 @@ $("btn-guardar").addEventListener("click", async () => {
       citaria: generado.judge.citaria,
       judgeFeedback: generado.judge.feedback,
       motor: generado.motor || "",
+      tipo: generado.tipo || "",
     }) });
     $("resultado-guardado").innerHTML = `✓ Guardado. <a href="${data.articleUrl}" target="_blank">Abrir el artículo en Notion</a>`;
   } catch (e) {
@@ -508,6 +556,28 @@ $("btn-guardar").addEventListener("click", async () => {
 });
 
 $("sel-modelo").innerHTML = MODELOS_REDACTOR.map((m) => `<option value="${m.slug}">${m.nombre}</option>`).join("");
+$("sel-tipo").innerHTML = Object.keys(TIPOS_ARTICULO).map((t) => `<option value="${t}">${t}</option>`).join("");
+$("btn-onboard").addEventListener("click", async () => {
+  const nombre = $("nuevo-nombre").value.trim();
+  const urlWeb = $("nuevo-url").value.trim();
+  if (!nombre || !urlWeb) { $("onboard-status").textContent = "Rellena nombre y URL."; return; }
+  $("btn-onboard").disabled = true;
+  $("onboard-status").textContent = "Leyendo la web, generando brand voice y creando la ficha en Notion… (30-60 segundos)";
+  try {
+    const data = await api("/api/onboard", { method: "POST", body: JSON.stringify({ nombre, url: urlWeb }) });
+    const aviso = data.pocoTexto ? " ⚠️ La web tiene poco texto legible: revisa y completa la ficha a mano en Notion." : "";
+    $("onboard-status").innerHTML = `✓ Ficha creada (${data.paginasLeidas.length} páginas leídas). <a href="${data.notionUrl}" target="_blank">Revisar en Notion</a>.${aviso}`;
+    await cargarHoteles();
+    const idx = hoteles.findIndex((h) => h.pageId.replace(/-/g, "") === data.pageId.replace(/-/g, ""));
+    if (idx >= 0) { $("sel-hotel").value = String(idx); $("sel-hotel").dispatchEvent(new Event("change")); }
+    $("nuevo-nombre").value = ""; $("nuevo-url").value = "";
+  } catch (e) {
+    $("onboard-status").textContent = "Error: " + e.message;
+  } finally {
+    $("btn-onboard").disabled = false;
+  }
+});
+
 cargarHoteles();
 </script>
 </body>
