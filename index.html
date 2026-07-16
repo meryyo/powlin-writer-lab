@@ -640,7 +640,8 @@ $("btn-onboard").addEventListener("click", async () => {
   try {
     const data = await api("/api/onboard", { method: "POST", body: JSON.stringify({ nombre, url: urlWeb }) });
     const aviso = data.pocoTexto ? " ⚠️ La web tiene poco texto legible: revisa y completa la ficha a mano en Notion." : "";
-    $("onboard-status").innerHTML = `✓ Ficha creada (${data.paginasLeidas.length} páginas leídas). <a href="${data.notionUrl}" target="_blank">Revisar en Notion</a>.${aviso}`;
+    const nota = data.viaAlternativo ? " (la web bloqueaba el acceso directo; se ha leído con un lector alternativo)" : "";
+    $("onboard-status").innerHTML = `✓ Ficha creada (${data.paginasLeidas.length} páginas leídas${nota}). <a href="${data.notionUrl}" target="_blank">Revisar en Notion</a>.${aviso}`;
     await cargarHoteles();
     const idx = hoteles.findIndex((h) => h.pageId.replace(/-/g, "") === data.pageId.replace(/-/g, ""));
     if (idx >= 0) { $("sel-hotel").value = String(idx); $("sel-hotel").dispatchEvent(new Event("change")); }
