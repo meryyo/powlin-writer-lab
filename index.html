@@ -174,14 +174,47 @@ const MODELOS_REDACTOR = [
    sean comparables entre motores) y distinto del redactor si es posible. */
 const MODELO_JUDGE = "anthropic/claude-sonnet-4.6";
 
-/* Registro de voz — se aplica POR ENCIMA del brand voice del hotel.
-   "Brand voice del hotel" usa solo lo detectado/guardado en Notion. */
+/* Registro de voz — mecánico y concreto a propósito. Un LLM instruido en
+   abstracto ("eleva el tono") se queda a medio camino; con reglas de forma
+   (longitud de frase, léxico prohibido/obligatorio, ejemplos) el contraste
+   se nota de verdad. Cuando hay registro elegido, MANDA por completo sobre
+   el brand voice del hotel (ver uso en PROMPT_GENERACION). */
 const REGISTROS_VOZ = {
   "Brand voice del hotel": "",
-  "Sofisticado y elegante": "ELEVA EL REGISTRO: prosa sofisticada y cuidada, propia de una publicación de viajes de alta gama. Vocabulario preciso y elegante sin caer en lo recargado ni lo cursi. Ritmo sereno, frases bien construidas. Cero coloquialismos, cero exclamaciones, cero tuteo comercial. El lujo se sugiere con datos y detalles, no se grita con adjetivos.",
-  "Cercano y directo": "REGISTRO CERCANO: tuteo natural, frases directas, calidez sin cursilería. Como un amigo local que sabe de lo que habla. Práctico y concreto.",
-  "Profesional sobrio": "REGISTRO PROFESIONAL: neutro, informativo y riguroso, estilo guía de referencia. Sin florituras ni apelaciones emocionales. Los datos mandan.",
-  "Fresco y dinámico": "REGISTRO FRESCO: ágil, con energía, frases cortas y ritmo rápido. Juvenil sin ser infantil. Directo al grano con personalidad.",
+
+  "Sofisticado y elegante": `Escribe como el editor de viajes de una revista de lujo internacional (piensa Condé Nast Traveller, no un folleto comercial).
+REGLAS DE FORMA:
+- Frases largas y cadenciosas con subordinadas, ritmo pausado. Máximo 1 frase corta (menos de 8 palabras) por párrafo, usada como golpe de efecto, nunca como muletilla.
+- CERO signos de exclamación. CERO preguntas retóricas al lector ("¿te imaginas...?"). CERO imperativos ("descubre", "vive", "disfruta", "no te pierdas").
+- PROHIBIDO el tuteo comercial y el vocabulario de folleto: "increíble", "espectacular", "único en el mundo", "no te lo puedes perder", "perfecto para".
+- El lujo se demuestra con precisión, no con adjetivos: en vez de "una suite espectacular", escribe el dato exacto (metros cuadrados, materiales, vistas concretas) y deja que el lector saque la conclusión.
+- Vocabulario permitido y buscado: sustantivos concretos, verbos en tercera persona descriptiva, un adjetivo preciso mejor que tres vagos.
+EJEMPLO DE TONO (no copiar el contenido, solo el registro): "La suite ocupa 87 metros cuadrados distribuidos en dos alturas, con una terraza orientada al Atlántico que roza los quince metros de largo. Al atardecer, la luz entra baja y tiñe el mármol travertino de un ocre casi líquido."`,
+
+  "Cercano y directo": `Escribe como alguien de la ciudad que le da consejos a un amigo, por WhatsApp casi.
+REGLAS DE FORMA:
+- Frases cortas, de menos de 15 palabras de media. Tuteo constante y natural ("vas a...", "te va a pasar que...").
+- Empieza los párrafos con la información, no con rodeos: sujeto + verbo, directo.
+- Vocabulario cotidiano, cero tecnicismos hoteleros ("propuesta gastronómica" → "cocina"; "experiencia inmersiva" → di qué se hace).
+- Permite alguna coletilla conversacional puntual ("total, que...", "y aquí el truco:") pero sin abusar.
+- Los datos se cuentan como quien avisa a un colega, no como quien redacta una ficha técnica.
+EJEMPLO DE TONO: "A cien metros tienes la parada de autobús, así que si vas cargado con maletas, ni te lo pienses. Y el desayuno, en serio, resérvate media hora de más porque hay pan recién hecho que no vas a querer dejar pasar."`,
+
+  "Profesional sobrio": `Escribe como una guía de referencia técnica, tipo informe de consultoría de viajes.
+REGLAS DE FORMA:
+- Frases de longitud media, estructura sujeto-verbo-predicado sin adornos. Sin metáforas, sin apelación emocional, sin segunda persona ("tú", "usted") salvo en el FAQ.
+- Cada afirmación va acompañada de su dato de soporte (cifra, distancia, fecha) en la misma frase o la siguiente.
+- Prohibidos los adjetivos valorativos sin dato detrás ("excelente", "magnífico", "encantador"). Si algo es bueno, se demuestra con un hecho, no se califica.
+- Estructura en capas: afirmación general, después el detalle que la sostiene.
+EJEMPLO DE TONO: "El hotel dispone de 151 suites distribuidas en ocho categorías, todas con terraza o jardín privado. La categoría de entrada parte de 87 metros cuadrados, por encima de la media del segmento cinco estrellas en la zona."`,
+
+  "Fresco y dinámico": `Escribe con energía, como una recomendación viral bien escrita, no como un anuncio.
+REGLAS DE FORMA:
+- Frases muy cortas. Párrafos de 2-3 líneas máximo. Ritmo staccato: una idea, punto, siguiente idea.
+- Alguna frase sin verbo permitida como recurso de ritmo ("Vistas al Atlántico. Sin filtro."). Úsalo con moderación, no en cada párrafo.
+- Vocabulario actual y con chispa, sin caer en jerga de redes forzada ni emojis.
+- Los datos se sueltan como titulares, no como explicaciones largas.
+EJEMPLO DE TONO: "Veinticinco mil palmeras. Un campo de golf con premio europeo. Y un chef con doce estrellas Michelin a su nombre. Esto no es un resort más."`,
 };
 
 /* Tipos de artículo — en producción rotarán automáticamente (4 al mes, uno de cada).
@@ -201,7 +234,7 @@ const PROMPT_GENERACION = (ctx) => `Eres el redactor de contenidos del ${ctx.hot
 
 REGLAS OBLIGATORIAS:
 1. Idioma del artículo: ${ctx.idiomaArticulo}. Todo el artículo en ese idioma, incluido el título.
-2. Estructura answer-first: los primeros 2-3 párrafos deben responder directamente a la pregunta del prompt objetivo, mencionando al hotel de forma natural con su nombre completo y su ubicación exacta.
+2. Estructura answer-first: los primeros 2-3 párrafos deben responder directamente a la pregunta del prompt objetivo, mencionando al hotel de forma natural con su nombre completo y su ubicación exacta. Si el contexto incluye un PERFIL DEL HUÉSPED con "LE FRENA" y "LE CONVENCE", resuelve esa duda concreta en algún punto del artículo, sin nombrar el perfil ni sonar a ficha de marketing.
 3. Densidad factual: cada afirmación se apoya en los datos proporcionados abajo (datos del hotel o hechos verificados del destino). PROHIBIDO inventar datos, cifras, distancias o eventos que no estén en el contexto.
 4. Párrafos autocontenidos: cada párrafo debe entenderse por sí solo si una IA lo extrae fuera de contexto. Repite el nombre del hotel y la ciudad donde sea natural.
 5. Ángulo de actualidad: elige UN ángulo fresco basado en los bloques de agenda y novedades (evento, temporada, tendencia). El prompt objetivo es el destino; el ángulo es el vehículo. No repitas ángulos ya usados (ver ARTÍCULOS ANTERIORES al final).
@@ -213,9 +246,6 @@ REGLAS OBLIGATORIAS:
 TIPO DE ARTÍCULO DE ESTA SEMANA (define el enfoque y la forma de contar):
 ${ctx.tipoInstrucciones}
 
-REGISTRO DE VOZ (si contradice al brand voice, manda esto):
-${ctx.registroVoz || "Sigue fielmente la voz de marca del hotel."}
-
 ARTÍCULOS ANTERIORES DE ESTE HOTEL (para NO parecerte a ellos ni en ángulo, ni en apertura, ni en estructura):
 ${ctx.titulosAnteriores || "Ninguno todavía — este es el primero."}
 
@@ -226,9 +256,13 @@ C. UN BLOQUE DESTACADO DE UBICACIÓN (líneas que empiezan con "> ") con cómo l
 D. UNA SECCIÓN "Qué hacer en ${ctx.mesArticulo} y ${ctx.mesSiguiente} en ${ctx.hotelCiudad}" (## como subtítulo, adaptado al idioma del artículo) con 4-6 planes o eventos sacados EXCLUSIVAMENTE del bloque AGENDA OFICIAL, cada uno con su enlace a la fuente en formato [nombre del evento o web](URL). CRÍTICO: hoy es ${ctx.fechaHoy}; usa SOLO planes a futuro dentro de los próximos 30-60 días. Descarta todo lo ya pasado o lo que ocurra en los próximos 3-4 días (el hotelero necesita margen para publicar). Si un evento no tiene fecha clara en el contexto, no lo uses.
 E. NEGRITAS: entre 6 y 10 en todo el artículo, SOLO sobre datos que impactan a la vista: distancias ("a **50 pasos** de la estación"), cifras, exclusividades ("el **único** con..."), reconocimientos ("**Patrimonio de la Humanidad**"). Nunca frases enteras ni relleno.
 F. ENLACES: solo puedes enlazar URLs que aparezcan LITERALMENTE en el contexto de abajo (más el de Google Maps del punto C). Prefiere siempre las webs oficiales (turismo oficial, ayuntamiento, sedes de eventos). Entre 3 y 6 enlaces externos en el artículo. PROHIBIDO inventar, adivinar o "recordar" URLs.
+G. BLOQUE "EN RESUMEN" al principio del artículo, ANTES de cualquier párrafo, en formato de bloque destacado (líneas que empiezan con "> "). Primera línea en negrita "**En resumen:**", seguida de 3-5 líneas con "– " cada una, cada línea una afirmación corta, concreta y autosuficiente que responda de un vistazo al prompt objetivo (nombre del hotel, ubicación exacta, y el dato o diferenciador más relevante para esa pregunta). Debe funcionar como mini-respuesta aunque sea lo único que una IA extraiga del artículo.
 
-VOZ DE MARCA DEL HOTEL:
-${ctx.brandVoice}
+REGLA DE SUBTÍTULOS: cada ## debe ser una afirmación declarativa completa que ya responde una sub-pregunta relacionada con el prompt objetivo, nunca una etiqueta genérica. Mal: "## Ubicación". Bien: "## El [hotel] está a 15 minutos a pie del centro histórico". Aplica esto a TODOS los subtítulos del artículo, incluida la sección del mes.
+
+VOZ DEL ARTÍCULO — sigue ESTO al pie de la letra, es la instrucción de estilo más importante del encargo:
+${ctx.registroVoz || `Sigue la voz de marca del hotel (respeta especialmente el apartado EVITA, es una lista negra):\n${ctx.brandVoice}`}
+${ctx.registroVoz ? `\n(Esta voz SUSTITUYE a la voz de marca habitual del hotel para este artículo. Ignora el tono que puedas conocer o inferir del hotel; aplica solo las reglas de arriba.)` : ""}
 
 DATOS DEL HOTEL (única fuente válida sobre el hotel):
 ${ctx.datosHotel}
@@ -249,7 +283,9 @@ FORMATO DE SALIDA (exactamente así, sin nada antes ni después):
 Línea 1: # Título del artículo
 Línea 2: ÁNGULO: descripción del ángulo de actualidad elegido en una frase
 Línea 3: (vacía)
-Resto: el artículo completo en markdown (##, ###, párrafos, tabla con |, bloques con >, listas si hacen falta).`;
+Línea 4: Actualizado el ${ctx.fechaHoy}
+Línea 5: (vacía)
+Resto: el bloque EN RESUMEN primero, luego el artículo completo en markdown (##, ###, párrafos, tabla con |, bloques con >, listas si hacen falta).`;
 
 const PROMPT_JUDGE = (ctx) => `Eres el control de calidad de Powlin Writer. Evalúa este artículo escrito para que el ${ctx.hotelNombre} aparezca en respuestas de IAs al prompt: "${ctx.promptObjetivo}".
 
@@ -257,8 +293,8 @@ Evalúa estos 5 criterios (0-2 puntos cada uno, nota total sobre 10):
 1. Answer-first: ¿los primeros párrafos responden directamente al prompt objetivo mencionando hotel y ubicación?
 2. Densidad factual: ¿las afirmaciones son concretas y verificables, sin relleno genérico ni datos aparentemente inventados?
 3. Párrafos autocontenidos: ¿los párrafos clave funcionan extraídos fuera de contexto?
-4. Voz, registro y originalidad: ¿respeta la voz pedida, está íntegramente en ${ctx.idiomaArticulo}, y evita fórmulas plantilla? Penaliza con 0 si encuentras aperturas tipo "Si buscas...", "Si quieres...", "Imagina...", "Descubre...", la fórmula "no es solo X, es Y" o cierres genéricos.
-5. Estructura GEO completa: ¿tiene TODOS estos elementos? tabla comparativa, al menos dos bloques destacados (uno con dato sorprendente y otro de ubicación con enlace a Google Maps), sección de qué hacer este mes con enlaces a fuentes, FAQ final, y entre 6 y 10 negritas sobre datos concretos. Si falta CUALQUIERA de ellos, este criterio puntúa 0.
+4. Voz, registro y originalidad: ¿el texto suena de verdad a esto, no solo lo dice? →\n${ctx.registroVoz || "Debe sonar a la voz de marca del hotel proporcionada."}\nComprueba también que está íntegramente en ${ctx.idiomaArticulo} y que evita fórmulas plantilla ("Si buscas...", "Si quieres...", "Imagina...", "Descubre...", "no es solo X, es Y", cierres genéricos). Puntúa 0 si el registro pedido no es claramente reconocible al leer el texto, o si aparece cualquier fórmula plantilla.
+5. Estructura GEO completa: ¿tiene TODOS estos elementos? bloque "En resumen" al principio con 3-5 líneas autosuficientes, tabla comparativa, al menos dos bloques destacados más (dato sorprendente y ubicación con enlace a Google Maps), sección de qué hacer este mes con enlaces a fuentes, FAQ final, entre 6 y 10 negritas sobre datos concretos, y subtítulos que son afirmaciones declarativas (no etiquetas genéricas tipo "Ubicación" o "Servicios"). Si falta CUALQUIERA de ellos, este criterio puntúa 0.
 
 TEST DE CITABILIDAD: imagina que eres un asistente de IA respondiendo al prompt "${ctx.promptObjetivo}" y este artículo aparece entre tus fuentes recuperadas. ¿Citarías este artículo para construir tu respuesta? Sé exigente: solo "sí" si el artículo aporta información específica, directa y confiable para ese prompt exacto.
 
@@ -453,7 +489,7 @@ async function generar(esRegeneracion) {
     const modeloRedactor = $("sel-modelo").value;
     log(`  motor: ${modeloRedactor}`);
     const gen = await api("/api/llm", { method: "POST", body: JSON.stringify({ model: modeloRedactor, user, maxTokens: 4000 }) });
-    let { titulo, angulo, cuerpo } = parsearSalida(gen.text);
+    let { titulo, angulo, actualizado, cuerpo } = parsearSalida(gen.text);
     log(`  ✓ "${titulo}"`, "ok");
 
     // 3) Judge + citabilidad
@@ -466,13 +502,13 @@ async function generar(esRegeneracion) {
       log(`  ✗ nota ${judge.nota}/10 · citaría: ${judge.citaria ? "sí" : "no"} — regenerando con feedback…`, "err");
       const user2 = PROMPT_GENERACION(ctx) + `\n\nEl control de calidad rechazó el intento anterior. Corrige esto: ${judge.feedback}`;
       const gen2 = await api("/api/llm", { method: "POST", body: JSON.stringify({ model: modeloRedactor, user: user2, maxTokens: 4000 }) });
-      ({ titulo, angulo, cuerpo } = parsearSalida(gen2.text));
+      ({ titulo, angulo, actualizado, cuerpo } = parsearSalida(gen2.text));
       judge = await juzgar(titulo, cuerpo, idiomaArticulo);
       veredicto = judge.aprobado && judge.citaria ? "Aprobado tras regenerar" : "Necesita revisión";
     }
     log(`  ✓ nota ${judge.nota}/10 · citaría: ${judge.citaria ? "sí" : "no"}`, "ok");
 
-    generado = { titulo, angulo, articuloMd: `# ${titulo}\n\n${cuerpo}`, judge, veredicto, motor: modeloRedactor, tipo: tipoSel };
+    generado = { titulo, angulo, actualizado, articuloMd: `# ${titulo}\n\n${cuerpo}`, judge, veredicto, motor: modeloRedactor, tipo: tipoSel };
     pintarResultado();
   } catch (e) {
     log("ERROR: " + e.message, "err");
@@ -484,21 +520,23 @@ async function generar(esRegeneracion) {
 
 function parsearSalida(text) {
   const lines = text.trim().split("\n");
-  let titulo = "Sin título", angulo = "", start = 0;
-  for (let i = 0; i < Math.min(lines.length, 5); i++) {
+  let titulo = "Sin título", angulo = "", actualizado = "", start = 0;
+  for (let i = 0; i < Math.min(lines.length, 7); i++) {
     if (lines[i].startsWith("# ")) { titulo = lines[i].slice(2).trim(); start = i + 1; }
     if (lines[i].toUpperCase().startsWith("ÁNGULO:") || lines[i].toUpperCase().startsWith("ANGULO:")) {
       angulo = lines[i].split(":").slice(1).join(":").trim(); start = i + 1;
     }
+    if (/^actualizado el/i.test(lines[i].trim())) { actualizado = lines[i].trim(); start = i + 1; }
   }
-  return { titulo, angulo, cuerpo: lines.slice(start).join("\n").trim() };
+  return { titulo, angulo, actualizado, cuerpo: lines.slice(start).join("\n").trim() };
 }
 
 async function juzgar(titulo, cuerpo, idiomaArticulo) {
+  const registroSel = $("sel-registro").value;
   const res = await api("/api/llm", { method: "POST", body: JSON.stringify({
     model: MODELO_JUDGE,
     user: PROMPT_JUDGE({ hotelNombre: hotelSel.nombre, promptObjetivo: promptSel.prompt,
-      idiomaArticulo, articulo: `# ${titulo}\n\n${cuerpo}` }),
+      idiomaArticulo, registroVoz: REGISTROS_VOZ[registroSel], articulo: `# ${titulo}\n\n${cuerpo}` }),
     maxTokens: 600 }) });
   const clean = res.text.replace(/```json|```/g, "").trim();
   try { return JSON.parse(clean); }
@@ -514,7 +552,7 @@ function pintarResultado() {
     <div class="caja ${vClase}">Veredicto<b>${g.veredicto}</b></div>
     <div class="caja ${g.judge.nota >= 7 ? "ok" : "mal"}">Nota del Judge<b>${g.judge.nota}/10</b></div>
     <div class="caja ${g.judge.citaria ? "ok" : "mal"}">Test de citabilidad<b>${g.judge.citaria ? "✓ Citaría" : "✗ No citaría"}</b></div>`;
-  $("meta-angulo").innerHTML = `<b>Tipo:</b> ${g.tipo || "—"} · <b>Ángulo de actualidad:</b> ${g.angulo || "—"} · <b>Prompt objetivo:</b> "${promptSel.prompt}"`;
+  $("meta-angulo").innerHTML = `<b>Tipo:</b> ${g.tipo || "—"} · <b>Ángulo de actualidad:</b> ${g.angulo || "—"} · <b>${g.actualizado || ""}</b> · <b>Prompt objetivo:</b> "${promptSel.prompt}"`;
   $("articulo").innerHTML = mdAHtml(g.articuloMd);
   $("feedback-judge").textContent = g.judge.feedback ? "Judge: " + g.judge.feedback : "";
   $("resultado-guardado").innerHTML = "";
