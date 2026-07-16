@@ -148,7 +148,7 @@
     <div class="feedback-judge" id="feedback-judge"></div>
     <div class="fila-botones">
       <button class="btn-secundario" id="btn-regenerar">Regenerar con otro ángulo</button>
-      <button class="btn-primario" id="btn-guardar">Guardar en Notion</button>
+      <button class="btn-fantasma" id="btn-guardar">Reintentar guardado</button>
     </div>
     <p class="aviso" id="resultado-guardado"></p>
   </section>
@@ -557,6 +557,7 @@ function pintarResultado() {
   $("feedback-judge").textContent = g.judge.feedback ? "Judge: " + g.judge.feedback : "";
   $("resultado-guardado").innerHTML = "";
   $("paso4").scrollIntoView({ behavior: "smooth" });
+  guardarArticulo();
 }
 
 function mdAHtml(md) {
@@ -598,8 +599,8 @@ function mdAHtml(md) {
   return out.join("");
 }
 
-/* ---- Guardar ---- */
-$("btn-guardar").addEventListener("click", async () => {
+/* ---- Guardar (siempre automático al terminar de generar; el botón queda como reintento manual) ---- */
+async function guardarArticulo() {
   if (!generado) return;
   $("btn-guardar").disabled = true;
   $("resultado-guardado").textContent = "Guardando en Notion…";
@@ -621,13 +622,15 @@ $("btn-guardar").addEventListener("click", async () => {
       motor: generado.motor || "",
       tipo: generado.tipo || "",
     }) });
-    $("resultado-guardado").innerHTML = `✓ Guardado. <a href="${data.articleUrl}" target="_blank">Abrir el artículo en Notion</a>`;
+    $("resultado-guardado").innerHTML = `✓ Guardado automáticamente. <a href="${data.articleUrl}" target="_blank">Abrir el artículo en Notion</a>`;
+    hotelArticulos.unshift({ titulo: generado.titulo, angulo: generado.angulo, tipo: generado.tipo, fecha: new Date().toISOString() });
   } catch (e) {
-    $("resultado-guardado").textContent = "Error al guardar: " + e.message;
+    $("resultado-guardado").innerHTML = `Error al guardar automáticamente: ${e.message} — <button class="btn-fantasma" onclick="guardarArticulo()" style="padding:4px 10px">Reintentar</button>`;
   } finally {
     $("btn-guardar").disabled = false;
   }
-});
+}
+$("btn-guardar").addEventListener("click", guardarArticulo);
 
 $("sel-modelo").innerHTML = MODELOS_REDACTOR.map((m) => `<option value="${m.slug}">${m.nombre}</option>`).join("");
 $("sel-tipo").innerHTML = Object.keys(TIPOS_ARTICULO).map((t) => `<option value="${t}">${t}</option>`).join("");
